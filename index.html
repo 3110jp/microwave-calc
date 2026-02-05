@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>電子レンジ調理時間換算器</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+      background: #f5f1ec;
+      min-height: 100vh;
+      padding: 36px 16px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Card Shell ── */
+    .card {
+      max-width: 400px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 4px 28px rgba(50, 30, 10, 0.07);
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #f0632a 0%, #f59030 100%);
+      padding: 26px 24px 22px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 1.18rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .header p {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.82);
+      margin-top: 4px;
+    }
+
+    /* ── Body ── */
+    .body { padding: 26px 22px 24px; }
+
+    /* ── Section ── */
+    .sec { margin-bottom: 22px; }
+    .sec-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #8e8e93;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+
+    /* ── Watt Preset Buttons ── */
+    .watt-btns { display: flex; gap: 6px; }
+    .watt-btn {
+      flex: 1;
+      padding: 12px 2px;
+      border: 2px solid #ede9e4;
+      border-radius: 12px;
+      background: #faf8f6;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #8e8e93;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, color .15s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .watt-btn.active {
+      border-color: #f08040;
+      background: #fff5ef;
+      color: #e06020;
+    }
+
+    /* ── Custom Watt Slide-down ── */
+    .custom-slide {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height .22s ease, margin-top .22s ease;
+    }
+    .custom-slide.open { max-height: 56px; margin-top: 10px; }
+    .custom-slide input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #ede9e4;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2c2c2e;
+      text-align: center;
+      background: #faf8f6;
+      -moz-appearance: textfield;
+    }
+    .custom-slide input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .custom-slide input:focus { outline: none; border-color: #f08040; background: #fff; }
+
+    /* ── Time Input Row ── */
+    .time-row { display: flex; align-items: flex-start; gap: 8px; }
+    .time-col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .time-input {
+      width: 72px;
+      height: 64px;
+      border: 2px solid #ede9e4;
+      border-radius: 14px;
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      color: #2c2c2e;
+      background: #faf8f6;
+      -moz-appearance: textfield;
+      transition: border-color .15s;
+    }
+    .time-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .time-input:focus { outline: none; border-color: #f08040; background: #fff; }
+    .time-unit { font-size: 0.8rem; font-weight: 600; color: #8e8e93; }
+
+    /* ── Arrow ── */
+    .arrow { text-align: center; color: #d4ccc5; font-size: 1.3rem; padding: 2px 0; }
+
+    /* ── My Microwave Watt ── */
+    .my-watt-row { display: flex; align-items: center; gap: 8px; }
+    .my-watt-row input {
+      width: 96px;
+      height: 46px;
+      border: 2px solid #ede9e4;
+      border-radius: 12px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-align: center;
+      color: #2c2c2e;
+      background: #faf8f6;
+      -moz-appearance: textfield;
+    }
+    .my-watt-row input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .my-watt-row input:focus { outline: none; border-color: #f08040; background: #fff; }
+    .my-watt-row .w-label { font-size: 1rem; font-weight: 700; color: #8e8e93; }
+
+    /* ── Result Box ── */
+    .result {
+      background: linear-gradient(140deg, #fff4ed, #fff8f2);
+      border: 1.5px solid #f0ddd2;
+      border-radius: 18px;
+      padding: 18px 16px 16px;
+      text-align: center;
+      transition: background .2s, border-color .2s;
+    }
+    .result.error { background: #fff5f5; border-color: #f0c8c8; }
+
+    .result-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #d07040;
+      letter-spacing: 0.03em;
+      margin-bottom: 4px;
+    }
+    .result.error .result-label { color: #c44; }
+
+    .result-time {
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: #d07040;
+      line-height: 1.15;
+    }
+    .result-time .u { font-size: 1.1rem; font-weight: 600; color: #dfa070; }
+    .result.error .result-time { font-size: 1rem; font-weight: 600; color: #c44; }
+
+    .result-detail {
+      margin-top: 8px;
+      font-size: 0.76rem;
+      color: #b09080;
+      line-height: 1.6;
+    }
+    .result-detail b { font-weight: 700; color: #c08060; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <!-- ── Header ── -->
+  <div class="header">
+    <h1>🍜 電子レンジ 調理時間換算</h1>
+    <p>食品の記載時間を自分のレンジに合わせる</p>
+  </div>
+
+  <!-- ── Body ── -->
+  <div class="body">
+
+    <!-- 1. 食品のワット数 -->
+    <div class="sec">
+      <div class="sec-label">食品に記載されたワット数</div>
+      <div class="watt-btns">
+        <button class="watt-btn active" data-watt="500">500W</button>
+        <button class="watt-btn"        data-watt="600">600W</button>
+        <button class="watt-btn"        data-watt="700">700W</button>
+        <button class="watt-btn"        data-watt="custom">その他</button>
+      </div>
+      <div class="custom-slide" id="customSlide">
+        <input type="number" id="customWattInput" placeholder="ワット数を入力" inputmode="numeric">
+      </div>
+    </div>
+
+    <!-- 2. 食品の調理時間 -->
+    <div class="sec">
+      <div class="sec-label">食品に記載された調理時間</div>
+      <div class="time-row">
+        <div class="time-col">
+          <input type="number" class="time-input" id="inMin" value="3" min="0" max="99" inputmode="numeric" autocomplete="off">
+          <span class="time-unit">分</span>
+        </div>
+        <div class="time-col">
+          <input type="number" class="time-input" id="inSec" value="0" min="0" max="59" inputmode="numeric" autocomplete="off">
+          <span class="time-unit">秒</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ↓ -->
+    <div class="arrow">▼</div>
+
+    <!-- 3. 自分のレンジのワット数 -->
+    <div class="sec">
+      <div class="sec-label">あなたの電子レンジのワット数</div>
+      <div class="my-watt-row">
+        <input type="number" id="myWatt" value="800" min="100" max="2000" inputmode="numeric" autocomplete="off">
+        <span class="w-label">W</span>
+      </div>
+    </div>
+
+    <!-- 4. 換算結果 -->
+    <div class="result" id="result">
+      <div class="result-label"  id="resLabel">▶ 800Wでの調理時間</div>
+      <div class="result-time"   id="resTime"></div>
+      <div class="result-detail" id="resDetail"></div>
+    </div>
+
+  </div><!-- /body -->
+</div><!-- /card -->
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── DOM ── */
+  const wattBtns    = document.querySelectorAll('.watt-btn');
+  const customSlide = document.getElementById('customSlide');
+  const customInput = document.getElementById('customWattInput');
+  const inMin       = document.getElementById('inMin');
+  const inSec       = document.getElementById('inSec');
+  const myWattEl    = document.getElementById('myWatt');
+  const resultEl    = document.getElementById('result');
+  const resLabel    = document.getElementById('resLabel');
+  const resTime     = document.getElementById('resTime');
+  const resDetail   = document.getElementById('resDetail');
+
+  /* ── State ── */
+  let foodWatt = 500;
+
+  /* ── Restore saved "my watt" from localStorage ── */
+  const saved = localStorage.getItem('microwave-calc.myWatt');
+  if (saved && !isNaN(saved)) myWattEl.value = saved;
+
+  /* ── Watt preset buttons ── */
+  wattBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      wattBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      if (btn.dataset.watt === 'custom') {
+        customSlide.classList.add('open');
+        foodWatt = parseInt(customInput.value) || 0;
+        setTimeout(() => customInput.focus(), 240);
+      } else {
+        customSlide.classList.remove('open');
+        foodWatt = parseInt(btn.dataset.watt);
+      }
+      calc();
+    });
+  });
+
+  customInput.addEventListener('input', () => {
+    foodWatt = parseInt(customInput.value) || 0;
+    calc();
+  });
+
+  /* ── Time inputs ── */
+  [inMin, inSec].forEach(el => {
+    el.addEventListener('focus', function () { this.select(); });
+  });
+
+  inMin.addEventListener('input', () => {
+    const v = parseInt(inMin.value);
+    if (isNaN(v) || v < 0) inMin.value = '';
+    else if (v > 99) inMin.value = 99;
+    calc();
+  });
+
+  inSec.addEventListener('input', () => {
+    const v = parseInt(inSec.value);
+    if (isNaN(v) || v < 0) inSec.value = '';
+    else if (v > 59) inSec.value = 59;
+    calc();
+  });
+
+  /* ── My watt input ── */
+  myWattEl.addEventListener('focus', function () { this.select(); });
+  myWattEl.addEventListener('input', () => {
+    const v = parseInt(myWattEl.value);
+    if (v > 2000) myWattEl.value = 2000;
+    localStorage.setItem('microwave-calc.myWatt', myWattEl.value);
+    calc();
+  });
+
+  /* ── Core Calculation ── */
+  function calc() {
+    const min      = parseInt(inMin.value)    || 0;
+    const sec      = parseInt(inSec.value)    || 0;
+    const myW      = parseInt(myWattEl.value) || 0;
+    const totalSec = min * 60 + sec;
+
+    resLabel.textContent = `▶ ${myW || '—'}Wでの調理時間`;
+
+    /* Validation */
+    if (foodWatt <= 0 || myW <= 0 || totalSec <= 0) {
+      resultEl.classList.add('error');
+      resTime.innerHTML   = '値を入力してください';
+      resDetail.innerHTML = '';
+      return;
+    }
+    resultEl.classList.remove('error');
+
+    /*
+     * 物理の式：エネルギー = 電力 × 時間  ⇒  W₁·T₁ = W₂·T₂
+     * ∴ T₂ = W₁ × T₁ ÷ W₂
+     */
+    const exactSec = (foodWatt * totalSec) / myW;
+    const ceilSec  = Math.ceil(exactSec);          // 安全側に切り上げ
+    const outMin   = Math.floor(ceilSec / 60);
+    const outSec   = ceilSec % 60;
+
+    /* ── Main display ── */
+    let html = '';
+    if (outMin > 0 && outSec > 0) {
+      html = `${outMin}<span class="u">分</span> ${outSec}<span class="u">秒</span>`;
+    } else if (outMin > 0) {
+      html = `${outMin}<span class="u">分</span>`;
+    } else {
+      html = `${outSec}<span class="u">秒</span>`;
+    }
+    resTime.innerHTML = html;
+
+    /* ── Detail line ── */
+    const isExact = Math.abs(exactSec - Math.round(exactSec)) < 0.001;
+    if (isExact) {
+      resDetail.innerHTML =
+        `${foodWatt}W × ${totalSec}秒 ÷ ${myW}W = ${Math.round(exactSec)}秒`;
+    } else {
+      resDetail.innerHTML =
+        `正確には <b>${formatSec(exactSec)}</b>（切り上げで表示）<br>` +
+        `${foodWatt}W × ${totalSec}秒 ÷ ${myW}W`;
+    }
+  }
+
+  /* ── Helper: 秒数を "X分Y秒" に整形 ── */
+  function formatSec(s) {
+    const m   = Math.floor(s / 60);
+    let   rem = Math.round((s - m * 60) * 10) / 10; // 小数点1桁まで
+    const remStr = (rem % 1 === 0) ? `${rem}` : `${rem.toFixed(1)}`;
+
+    if (m > 0 && rem > 0) return `${m}分${remStr}秒`;
+    if (m > 0)            return `${m}分`;
+    return `${remStr}秒`;
+  }
+
+  /* ── Initial render ── */
+  calc();
+})();
+</script>
+</body>
+</html>
